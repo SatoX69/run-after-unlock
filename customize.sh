@@ -1,70 +1,41 @@
-##########################################################################################
-#
-# MMT Extended Config Script
-#
-##########################################################################################
+SKIPUNZIP=0
 
-##########################################################################################
-# Config Flags
-##########################################################################################
+ui_print " "
+ui_print "Run When Unlocked"
+ui_print " "
+ui_print "Choose unlock wait mode:"
+ui_print " "
+ui_print "VOL UP   = Strict (20s wait, 6 attempts [DEFAULT])"
+ui_print "VOL DOWN = Infinite wait"
+ui_print " "
+ui_print "Waiting 10 seconds..."
 
-# Uncomment and change 'MINAPI' and 'MAXAPI' to the minimum and maximum android version for your mod
-# Uncomment DYNLIB if you want libs installed to vendor for oreo+ and system for anything older
-# Uncomment PARTOVER if you have a workaround in place for extra partitions in regular magisk install (can mount them yourself - you will need to do this each boot as well). If unsure, keep commented
-# Uncomment PARTITIONS and list additional partitions you will be modifying (other than system and vendor), for example: PARTITIONS="/odm /product /system_ext"
-#MINAPI=21
-#MAXAPI=25
-#DYNLIB=true
-#PARTOVER=true
-#PARTITIONS=""
+MODE="strict"
 
-##########################################################################################
-# Replace list
-##########################################################################################
+timeout=10
+while [ $timeout -gt 0 ]; do
+    EVENT=$(getevent -qlc 1 2>/dev/null)
 
-# List all directories you want to directly replace in the system
-# Check the documentations for more info why you would need this
+    echo "$EVENT" | grep -q "KEY_VOLUMEUP" && {
+        MODE="strict"
+        break
+    }
 
-# Construct your list in the following format
-# This is an example
-REPLACE_EXAMPLE="
-/system/app/Youtube
-/system/priv-app/SystemUI
-/system/priv-app/Settings
-/system/framework
-"
+    echo "$EVENT" | grep -q "KEY_VOLUMEDOWN" && {
+        MODE="infinite"
+        break
+    }
 
-# Construct your own list here
-REPLACE="
-"
+    sleep 1
+    timeout=$((timeout-1))
+done
 
-##########################################################################################
-# Permissions
-##########################################################################################
+mkdir -p "$MODPATH/config"
 
-set_permissions() {
-  : # Remove this if adding to this function
+echo "$MODE" > "$MODPATH/config/unlock_mode"
 
-  # Note that all files/folders in magisk module directory have the $MODPATH prefix - keep this prefix on all of your files/folders
-  # Some examples:
-  
-  # For directories (includes files in them):
-  # set_perm_recursive  <dirname>                <owner> <group> <dirpermission> <filepermission> <contexts> (default: u:object_r:system_file:s0)
-  
-  # set_perm_recursive $MODPATH/system/lib 0 0 0755 0644
-  # set_perm_recursive $MODPATH/system/vendor/lib/soundfx 0 0 0755 0644
-
-  # For files (not in directories taken care of above)
-  # set_perm  <filename>                         <owner> <group> <permission> <contexts> (default: u:object_r:system_file:s0)
-  
-  # set_perm $MODPATH/system/lib/libart.so 0 0 0644
-  # set_perm /data/local/tmp/file.txt 0 0 644
-}
-
-##########################################################################################
-# MMT Extended Logic - Don't modify anything after this
-##########################################################################################
-
-SKIPUNZIP=1
-unzip -qjo "$ZIPFILE" 'common/functions.sh' -d $TMPDIR >&2
-. $TMPDIR/functions.sh
+if [ "$MODE" = "strict" ]; then
+    ui_print "- Selected: Strict mode (6 attempts)"
+else
+    ui_print "- Selected: Infinite mode"
+fi
